@@ -1,7 +1,7 @@
 version: 2.1
 
 defaults: &defaults
-  parallelism: 1
+  # parallelism: 1
   working_directory: ~/cypress
   parameters: &defaultsParameters
     executor:
@@ -1324,7 +1324,7 @@ jobs:
         type: string
         default: medium
     resource_class: << parameters.resource_class >>
-    parallelism: 1
+    # parallelism: 1
     steps:
       - restore_cached_workspace
       - when:
@@ -1359,7 +1359,7 @@ jobs:
   unit-tests-release:
     <<: *defaults
     resource_class: small
-    parallelism: 1
+    # parallelism: 1
     steps:
       - restore_cached_workspace
       - update_known_hosts
@@ -1367,7 +1367,7 @@ jobs:
 
   lint-types:
     <<: *defaults
-    parallelism: 1
+    # parallelism: 1
     steps:
       - restore_cached_workspace
       - run:
@@ -1387,7 +1387,7 @@ jobs:
 
   server-unit-tests:
     <<: *defaults
-    parallelism: 1
+    # parallelism: 1
     steps:
       - restore_cached_workspace
       - run: yarn test-unit --scope @packages/server
@@ -1399,7 +1399,7 @@ jobs:
 
   server-integration-tests:
     <<: *defaults
-    parallelism: 1
+    # parallelism: 1
     steps:
       - restore_cached_workspace
       - run: yarn test-integration --scope @packages/server
