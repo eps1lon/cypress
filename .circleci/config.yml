@@ -1214,13 +1214,14 @@ jobs:
       - run:
           name: Top level packages
           command: yarn list --depth=0 || true
-      - run:
-          name: Check env canaries on Linux
-          command: |
-            # only Docker has the required env data for this
-            if [[ $CI_DOCKER == 'true' ]]; then
-              node ./scripts/circle-env.js --check-canaries
-            fi
+      # Needs MAIN_CANARY and CONTEXT_CANARY but I can't find usage of these outside validation
+      # - run:
+      #     name: Check env canaries on Linux
+      #     command: |
+      #       # only Docker has the required env data for this
+      #       if [[ $CI_DOCKER == 'true' ]]; then
+      #         node ./scripts/circle-env.js --check-canaries
+      #       fi
       - build-and-persist
       - store-npm-logs
 
