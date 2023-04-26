@@ -28,8 +28,7 @@ mainBuildFilters: &mainBuildFilters
       only:
         - develop
         - fix-ci-deps
-        - release/10.9.0
-        - test/setup-ci-release
+        - /.*-release$/
 
 # usually we don't build Mac app - it takes a long time
 # but sometimes we want to really confirm we are doing the right thing
@@ -38,7 +37,6 @@ macWorkflowFilters: &darwin-workflow-filters
   when:
     or:
     - equal: [ develop, << pipeline.git.branch >> ]
-    - equal: [ release/10.9.0, << pipeline.git.branch >> ]
     - equal: [ 'correct-dashboard-results', << pipeline.git.branch >> ]
     - matches:
           pattern: "-release$"
@@ -48,7 +46,6 @@ linuxArm64WorkflowFilters: &linux-arm64-workflow-filters
   when:
     or:
     - equal: [ develop, << pipeline.git.branch >> ]
-    - equal: [ release/10.9.0, << pipeline.git.branch >> ]
     - matches:
           pattern: "-release$"
           value: << pipeline.git.branch >>
