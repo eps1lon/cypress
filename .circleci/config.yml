@@ -1,7 +1,7 @@
 version: 2.1
 
 defaults: &defaults
-  parallelism: 1
+  # parallelism: 1
   working_directory: ~/cypress
   parameters: &defaultsParameters
     executor:
@@ -28,6 +28,7 @@ mainBuildFilters: &mainBuildFilters
       only:
         - develop
         - fix-ci-deps
+        - /.*-release$/
 
 # usually we don't build Mac app - it takes a long time
 # but sometimes we want to really confirm we are doing the right thing
@@ -1210,13 +1211,14 @@ jobs:
       - run:
           name: Top level packages
           command: yarn list --depth=0 || true
-      - run:
-          name: Check env canaries on Linux
-          command: |
-            # only Docker has the required env data for this
-            if [[ $CI_DOCKER == 'true' ]]; then
-              node ./scripts/circle-env.js --check-canaries
-            fi
+      # Needs MAIN_CANARY and CONTEXT_CANARY but I can't find usage of these outside validation
+      # - run:
+      #     name: Check env canaries on Linux
+      #     command: |
+      #       # only Docker has the required env data for this
+      #       if [[ $CI_DOCKER == 'true' ]]; then
+      #         node ./scripts/circle-env.js --check-canaries
+      #       fi
       - build-and-persist
       - store-npm-logs
 
@@ -1320,7 +1322,7 @@ jobs:
         type: string
         default: medium
     resource_class: << parameters.resource_class >>
-    parallelism: 1
+    # parallelism: 1
     steps:
       - restore_cached_workspace
       - when:
@@ -1355,7 +1357,7 @@ jobs:
   unit-tests-release:
     <<: *defaults
     resource_class: small
-    parallelism: 1
+    # parallelism: 1
     steps:
       - restore_cached_workspace
       - update_known_hosts
@@ -1363,7 +1365,7 @@ jobs:
 
   lint-types:
     <<: *defaults
-    parallelism: 1
+    # parallelism: 1
     steps:
       - restore_cached_workspace
       - run:
@@ -1383,7 +1385,7 @@ jobs:
 
   server-unit-tests:
     <<: *defaults
-    parallelism: 1
+    # parallelism: 1
     steps:
       - restore_cached_workspace
       - run: yarn test-unit --scope @packages/server
@@ -1395,7 +1397,7 @@ jobs:
 
   server-integration-tests:
     <<: *defaults
-    parallelism: 1
+    # parallelism: 1
     steps:
       - restore_cached_workspace
       - run: yarn test-integration --scope @packages/server
@@ -1639,14 +1641,15 @@ jobs:
           browser: electron
           experimentalSessionAndOrigin: true
 
-  driver-integration-tests-webkit-experimentalSessionAndOrigin:
-    <<: *defaults
-    resource_class: medium
-    parallelism: 5
-    steps:
-      - run-driver-integration-tests:
-          browser: webkit
-          experimentalSessionAndOrigin: true
+  # TODO: Implement WebKit network automation to fix the majority of these tests before re-enabling
+  # driver-integration-tests-webkit-experimentalSessionAndOrigin:
+  #   <<: *defaults
+  #   resource_class: medium
+  #   parallelism: 5
+  #   steps:
+  #     - run-driver-integration-tests:
+  #         browser: webkit
+  #         experimentalSessionAndOrigin: true
 
   run-reporter-component-tests-chrome:
     <<: *defaults
@@ -1853,34 +1856,6 @@ jobs:
           name: Build
           command: yarn workspace @cypress/mount-utils build
       - store-npm-logs
-  
-  npm-xpath:
-    <<: *defaults
-    resource_class: small
-    steps:
-      - restore_cached_workspace
-      - run:
-          name: Run tests
-          command: yarn workspace @cypress/xpath cy:run
-      - store_test_results:
-          path: npm/xpath/test_results
-      - store_artifacts:
-          path: npm/xpath/test_results
-      - store-npm-logs
-
-  npm-grep:
-    <<: *defaults
-    resource_class: small
-    steps:
-      - restore_cached_workspace
-      - run:
-          name: Run tests
-          command: yarn workspace @cypress/grep cy:run
-      - store_test_results:
-          path: npm/grep/test_results
-      - store_artifacts:
-          path: npm/grep/test_results
-      - store-npm-logs
 
   npm-create-cypress-tests:
     <<: *defaults
@@ -1936,6 +1911,12 @@ jobs:
       - build-binary
       - build-cypress-npm-package:
           executor: << parameters.executor >>
+      - store_artifacts:
+          path: cypress.zip
+          destination: cypress.zip
+      - store_artifacts:
+          path: cypress.tgz
+          destination: cypress.tgz
       - verify_should_persist_artifacts
       - upload-build-artifacts
       - post-install-comment
@@ -2250,31 +2231,6 @@ jobs:
           repo: cypress-example-todomvc
           browser: firefox
 
-  test-binary-against-conduit-chrome:
-    <<: *defaults
-    steps:
-      - test-binary-against-repo:
-          repo: cypress-example-conduit-app
-          browser: chrome
-          command: "npm run cypress:run"
-          wait-on: http://localhost:3000
-
-  test-binary-against-api-testing-firefox:
-    <<: *defaults
-    steps:
-      - test-binary-against-repo:
-          repo: cypress-example-api-testing
-          browser: firefox
-          command: "npm run cy:run"
-
-  test-binary-against-piechopper-firefox:
-    <<: *defaults
-    steps:
-      - test-binary-against-repo:
-          repo: cypress-example-piechopper
-          browser: firefox
-          command: "npm run cypress:run"
-
   test-binary-against-cypress-realworld-app:
     <<: *defaults
     resource_class: medium+
@@ -2335,7 +2291,7 @@ linux-x64-workflow: &linux-x64-workflow
   jobs:
     - node_modules_install
     - build:
-        context: test-runner:env-canary
+        context: cypress:test-runner:env-canary
         requires:
           - node_modules_install
     - check-ts:
@@ -2346,7 +2302,7 @@ linux-x64-workflow: &linux-x64-workflow
         requires:
           - build
     - percy-finalize:
-        context: [test-runner:poll-circle-workflow, test-runner:percy]
+        context: [cypress:test-runner:poll-circle-workflow, cypress:test-runner:percy]
         required_env_var: PERCY_TOKEN # skips job if not defined (external PR)
         requires:
           - build
@@ -2355,14 +2311,14 @@ linux-x64-workflow: &linux-x64-workflow
           - build
     # unit, integration and e2e tests
     - cli-visual-tests:
-        context: test-runner:percy
+        context: cypress:test-runner:percy
         requires:
           - build
     - unit-tests:
         requires:
           - build
     - unit-tests-release:
-        context: test-runner:npm-release
+        context: cypress:test-runner:npm-release
         requires:
           - build
     - server-unit-tests:
@@ -2375,111 +2331,111 @@ linux-x64-workflow: &linux-x64-workflow
         requires:
           - build
     - system-tests-node-modules-install:
-        context: test-runner:performance-tracking
+        context: cypress:test-runner:performance-tracking
         requires:
           - build
     - system-tests-chrome:
-        context: test-runner:performance-tracking
+        context: cypress:test-runner:performance-tracking
         requires:
           - system-tests-node-modules-install
     - system-tests-electron:
-        context: test-runner:performance-tracking
+        context: cypress:test-runner:performance-tracking
         requires:
           - system-tests-node-modules-install
     - system-tests-firefox:
-        context: test-runner:performance-tracking
+        context: cypress:test-runner:performance-tracking
         requires:
           - system-tests-node-modules-install
     - system-tests-webkit:
-        context: test-runner:performance-tracking
+        context: cypress:test-runner:performance-tracking
         requires:
           - system-tests-node-modules-install
     - system-tests-non-root:
-        context: test-runner:performance-tracking
+        context: cypress:test-runner:performance-tracking
         executor: non-root-docker-user
         requires:
           - system-tests-node-modules-install
     - driver-integration-tests-chrome:
-        context: test-runner:cypress-record-key
+        context: cypress:test-runner:cypress-record-key
         requires:
           - build
     - driver-integration-tests-chrome-beta:
-        context: test-runner:cypress-record-key
+        context: cypress:test-runner:cypress-record-key
         requires:
           - build
     - driver-integration-tests-firefox:
-        context: test-runner:cypress-record-key
+        context: cypress:test-runner:cypress-record-key
         requires:
           - build
     - driver-integration-tests-electron:
-        context: test-runner:cypress-record-key
+        context: cypress:test-runner:cypress-record-key
         requires:
           - build
     - driver-integration-tests-webkit:
-        context: test-runner:cypress-record-key
+        context: cypress:test-runner:cypress-record-key
         requires:
           - build
     - driver-integration-tests-chrome-experimentalSessionAndOrigin:
-        context: test-runner:cypress-record-key
+        context: cypress:test-runner:cypress-record-key
         requires:
           - build
     - driver-integration-tests-chrome-beta-experimentalSessionAndOrigin:
-        context: test-runner:cypress-record-key
+        context: cypress:test-runner:cypress-record-key
         requires:
           - build
     - driver-integration-tests-firefox-experimentalSessionAndOrigin:
-        context: test-runner:cypress-record-key
+        context: cypress:test-runner:cypress-record-key
         requires:
           - build
     - driver-integration-tests-electron-experimentalSessionAndOrigin:
-        context: test-runner:cypress-record-key
+        context: cypress:test-runner:cypress-record-key
         requires:
           - build
     # TODO: Implement WebKit network automation to fix the majority of these tests before re-enabling
     # - driver-integration-tests-webkit-experimentalSessionAndOrigin:
-    #     context: test-runner:cypress-record-key
+    #     context: cypress:test-runner:cypress-record-key
     #     requires:
     #       - build
     - run-frontend-shared-component-tests-chrome:
-        context: [test-runner:cypress-record-key, test-runner:launchpad-tests, test-runner:percy]
+        context: [cypress:test-runner:cypress-record-key, cypress:test-runner:launchpad-tests, cypress:test-runner:percy]
         percy: true
         requires:
           - build
     - run-launchpad-integration-tests-chrome:
-        context: [test-runner:cypress-record-key, test-runner:launchpad-tests, test-runner:percy]
+        context: [cypress:test-runner:cypress-record-key, cypress:test-runner:launchpad-tests, cypress:test-runner:percy]
         percy: true
         requires:
           - build
     - run-launchpad-component-tests-chrome:
-        context: [test-runner:cypress-record-key, test-runner:launchpad-tests, test-runner:percy]
+        context: [cypress:test-runner:cypress-record-key, cypress:test-runner:launchpad-tests, cypress:test-runner:percy]
         percy: true
         requires:
           - build
     - run-app-integration-tests-chrome:
-        context: [test-runner:cypress-record-key, test-runner:launchpad-tests, test-runner:percy]
+        context: [cypress:test-runner:cypress-record-key, cypress:test-runner:launchpad-tests, cypress:test-runner:percy]
         percy: true
         requires:
           - build
     - run-webpack-dev-server-integration-tests:
-        context: [test-runner:cypress-record-key, test-runner:percy]
+        context: [cypress:test-runner:cypress-record-key, cypress:test-runner:percy]
         requires:
           - system-tests-node-modules-install
     - run-vite-dev-server-integration-tests:
-        context: [test-runner:cypress-record-key, test-runner:percy]
+        context: [cypress:test-runner:cypress-record-key, cypress:test-runner:percy]
         requires:
           - system-tests-node-modules-install
     - run-app-component-tests-chrome:
-        context: [test-runner:cypress-record-key, test-runner:launchpad-tests, test-runner:percy]
+        context: [cypress:test-runner:cypress-record-key, cypress:test-runner:launchpad-tests, cypress:test-runner:percy]
         percy: true
         requires:
           - build
     - run-reporter-component-tests-chrome:
-        context: [test-runner:cypress-record-key, test-runner:percy]
+        context: [cypress:test-runner:cypress-record-key, cypress:test-runner:percy]
         percy: true
         requires:
           - build
     - reporter-integration-tests:
-        context: [test-runner:cypress-record-key, test-runner:percy]
+        context: [cypress:test-runner:cypress-record-key, cypress:test-runner:percy]
         requires:
           - build
     - npm-webpack-dev-server:
@@ -2519,7 +2475,7 @@ linux-x64-workflow: &linux-x64-workflow
     # Any attempts to automate this are welcome
     # If CircleCI provided an "after all" hook, then this wouldn't be necessary
     - npm-release:
-        context: test-runner:npm-release
+        context: cypress:test-runner:npm-release
         requires:
           - build
           - check-ts
@@ -2569,7 +2525,7 @@ linux-x64-workflow: &linux-x64-workflow
     # various testing scenarios, like building full binary
     # and testing it on a real project
     - test-against-staging:
-        context: test-runner:record-tests
+        context: cypress:test-runner:record-tests
         <<: *mainBuildFilters
         requires:
           - build
@@ -2577,14 +2533,14 @@ linux-x64-workflow: &linux-x64-workflow
         requires:
           - build
     - test-kitchensink-against-staging:
-        context: test-runner:record-tests
+        context: cypress:test-runner:record-tests
         <<: *mainBuildFilters
         requires:
           - build
     - create-build-artifacts:
         context:
-          - test-runner:upload
-          - test-runner:commit-status-checks
+          - cypress:test-runner:upload
+          - cypress:test-runner:commit-status-checks
         requires:
           - build
     - test-npm-module-on-minimum-node-version:
@@ -2604,7 +2560,7 @@ linux-x64-workflow: &linux-x64-workflow
         requires:
           - create-build-artifacts
     - test-binary-against-staging:
-        context: test-runner:record-tests
+        context: cypress:test-runner:record-tests
         <<: *mainBuildFilters
         requires:
           - create-build-artifacts
@@ -2668,8 +2624,8 @@ linux-arm64-workflow: &linux-arm64-workflow
     - create-build-artifacts:
         name: linux-arm64-create-build-artifacts
         context:
-          - test-runner:upload
-          - test-runner:commit-status-checks
+          - cypress:test-runner:upload
+          - cypress:test-runner:commit-status-checks
         executor: linux-arm64
         resource_class: arm.medium
         requires:
@@ -2685,7 +2641,7 @@ darwin-x64-workflow: &darwin-x64-workflow
 
     - build:
         name: darwin-x64-build
-        context: test-runner:env-canary
+        context: cypress:test-runner:env-canary
         executor: mac
         resource_class: macos.x86.medium.gen2
         requires:
@@ -2700,9 +2656,9 @@ darwin-x64-workflow: &darwin-x64-workflow
     - create-build-artifacts:
         name: darwin-x64-create-build-artifacts
         context:
-          - test-runner:sign-mac-binary
-          - test-runner:upload
-          - test-runner:commit-status-checks
+          - cypress:test-runner:sign-mac-binary
+          - cypress:test-runner:upload
+          - cypress:test-runner:commit-status-checks
         executor: mac
         resource_class: macos.x86.medium.gen2
         requires:
@@ -2732,9 +2688,9 @@ darwin-arm64-workflow: &darwin-arm64-workflow
     - create-build-artifacts:
         name: darwin-arm64-create-build-artifacts
         context:
-          - test-runner:sign-mac-binary
-          - test-runner:upload
-          - test-runner:commit-status-checks
+          - cypress:test-runner:sign-mac-binary
+          - cypress:test-runner:upload
+          - cypress:test-runner:commit-status-checks
         executor: darwin-arm64
         resource_class: cypress-io/latest_m1
         requires:
@@ -2750,7 +2706,7 @@ windows-workflow: &windows-workflow
 
     - build:
         name: windows-build
-        context: test-runner:env-canary
+        context: cypress:test-runner:env-canary
         executor: windows
         resource_class: windows.large
         requires:
@@ -2760,7 +2716,7 @@ windows-workflow: &windows-workflow
         name: windows-run-app-integration-tests-chrome
         executor: windows
         resource_class: windows.large
-        context: [test-runner:cypress-record-key, test-runner:launchpad-tests]
+        context: [cypress:test-runner:cypress-record-key, cypress:test-runner:launchpad-tests]
         requires:
           - windows-build
 
@@ -2768,7 +2724,7 @@ windows-workflow: &windows-workflow
         name: windows-run-launchpad-integration-tests-chrome
         executor: windows
         resource_class: windows.large
-        context: [test-runner:cypress-record-key, test-runner:launchpad-tests]
+        context: [cypress:test-runner:cypress-record-key, cypress:test-runner:launchpad-tests]
         requires:
           - windows-build
 
@@ -2790,9 +2746,9 @@ windows-workflow: &windows-workflow
         executor: windows
         resource_class: windows.large
         context:
-          - test-runner:sign-windows-binary
-          - test-runner:upload
-          - test-runner:commit-status-checks
+          - cypress:test-runner:sign-windows-binary
+          - cypress:test-runner:upload
+          - cypress:test-runner:commit-status-checks
         requires:
           - windows-build
     - test-binary-against-kitchensink-chrome:
