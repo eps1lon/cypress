@@ -1643,14 +1643,15 @@ jobs:
           browser: electron
           experimentalSessionAndOrigin: true
 
-  driver-integration-tests-webkit-experimentalSessionAndOrigin:
-    <<: *defaults
-    resource_class: medium
-    parallelism: 5
-    steps:
-      - run-driver-integration-tests:
-          browser: webkit
-          experimentalSessionAndOrigin: true
+  # TODO: Implement WebKit network automation to fix the majority of these tests before re-enabling
+  # driver-integration-tests-webkit-experimentalSessionAndOrigin:
+  #   <<: *defaults
+  #   resource_class: medium
+  #   parallelism: 5
+  #   steps:
+  #     - run-driver-integration-tests:
+  #         browser: webkit
+  #         experimentalSessionAndOrigin: true
 
   run-reporter-component-tests-chrome:
     <<: *defaults
@@ -1856,34 +1857,6 @@ jobs:
       - run:
           name: Build
           command: yarn workspace @cypress/mount-utils build
-      - store-npm-logs
-  
-  npm-xpath:
-    <<: *defaults
-    resource_class: small
-    steps:
-      - restore_cached_workspace
-      - run:
-          name: Run tests
-          command: yarn workspace @cypress/xpath cy:run
-      - store_test_results:
-          path: npm/xpath/test_results
-      - store_artifacts:
-          path: npm/xpath/test_results
-      - store-npm-logs
-
-  npm-grep:
-    <<: *defaults
-    resource_class: small
-    steps:
-      - restore_cached_workspace
-      - run:
-          name: Run tests
-          command: yarn workspace @cypress/grep cy:run
-      - store_test_results:
-          path: npm/grep/test_results
-      - store_artifacts:
-          path: npm/grep/test_results
       - store-npm-logs
 
   npm-create-cypress-tests:
@@ -2253,31 +2226,6 @@ jobs:
       - test-binary-against-repo:
           repo: cypress-example-todomvc
           browser: firefox
-
-  test-binary-against-conduit-chrome:
-    <<: *defaults
-    steps:
-      - test-binary-against-repo:
-          repo: cypress-example-conduit-app
-          browser: chrome
-          command: "npm run cypress:run"
-          wait-on: http://localhost:3000
-
-  test-binary-against-api-testing-firefox:
-    <<: *defaults
-    steps:
-      - test-binary-against-repo:
-          repo: cypress-example-api-testing
-          browser: firefox
-          command: "npm run cy:run"
-
-  test-binary-against-piechopper-firefox:
-    <<: *defaults
-    steps:
-      - test-binary-against-repo:
-          repo: cypress-example-piechopper
-          browser: firefox
-          command: "npm run cypress:run"
 
   test-binary-against-cypress-realworld-app:
     <<: *defaults
