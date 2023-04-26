@@ -1913,6 +1913,12 @@ jobs:
       - build-binary
       - build-cypress-npm-package:
           executor: << parameters.executor >>
+      - store_artifacts:
+          path: cypress.zip
+          destination: cypress.zip
+      - store_artifacts:
+          path: cypress.tgz
+          destination: cypress.tgz
       - verify_should_persist_artifacts
       - upload-build-artifacts
       - post-install-comment
